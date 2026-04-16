@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analogizer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #1a1040 100%);
+            min-height: 100vh;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            padding: 50px 20px 80px;
+        }
+
+        .container { max-width: 760px; width: 100%; }
+
+        header { text-align: center; margin-bottom: 44px; }
+
+        h1 {
+            font-size: clamp(2.8rem, 8vw, 5rem);
+            font-weight: 900;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #f093fb 0%, #f5a623 50%, #4facfe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            color: #a78bfa;
+            font-style: italic;
+            font-size: 1.05rem;
+            margin-top: 10px;
+            letter-spacing: 0.08em;
+            opacity: 0.85;
+        }
+
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: end;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 520px) {
+            .game-area { grid-template-columns: 1fr; }
+            .connector { text-align: center; padding: 4px 0; }
+        }
+
+        .selector label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: #a78bfa;
+            margin-bottom: 7px;
+            text-align: center;
+        }
+
+        .selector input {
+            width: 100%;
+            background: rgba(255,255,255,0.07);
+            border: 2px solid rgba(167,139,250,0.25);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: white;
+            font-size: 1rem;
+            font-family: 'Georgia', serif;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .selector input::placeholder { color: rgba(255,255,255,0.25); font-style: italic; }
+        .selector input:hover { border-color: rgba(167,139,250,0.55); }
+        .selector input:focus { border-color: #a78bfa; background-color: rgba(255,255,255,0.1); }
+
+        .connector {
+            font-size: 1.15rem;
+            font-style: italic;
+            color: #f093fb;
+            white-space: nowrap;
+            padding-bottom: 14px;
+            text-shadow: 0 0 24px rgba(240,147,251,0.6);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 28px;
+        }
+
+        .btn-random {
+            background: rgba(255,255,255,0.06);
+            color: #a78bfa;
+            border: 1px solid rgba(167,139,250,0.25);
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.03em;
+        }
+
+        .btn-random:hover { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.5); }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #7c3aed, #db2777);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 40px;
+            font-size: 1.05rem;
+            font-family: 'Georgia', serif;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+            box-shadow: 0 4px 24px rgba(124,58,237,0.35);
+        }
+
+        .btn-generate:hover { opacity: 0.92; transform: translateY(-2px); box-shadow: 0 6px 28px rgba(124,58,237,0.5); }
+        .btn-generate:active { transform: translateY(0); }
+        .btn-generate:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .result-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(167,139,250,0.18);
+            border-radius: 18px;
+            padding: 32px 36px;
+            min-height: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        .result-card.has-result { border-color: rgba(167,139,250,0.4); }
+
+        .result-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(240,147,251,0.03) 0%, rgba(79,172,254,0.03) 100%);
+            pointer-events: none;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 0; left: 0;
+            height: 2px; width: 0;
+            background: linear-gradient(90deg, #f093fb, #4facfe);
+        }
+
+        .progress-line.animating {
+            animation: progress 2s ease-in-out infinite;
+        }
+
+        @keyframes progress {
+            0% { left: -60%; width: 60%; }
+            100% { left: 110%; width: 60%; }
+        }
+
+        .placeholder-text {
+            color: rgba(255,255,255,0.2);
+            font-style: italic;
+            font-size: 0.98rem;
+            text-align: center;
+            line-height: 1.7;
+        }
+
+        .loading-text {
+            color: #a78bfa;
+            font-style: italic;
+            text-align: center;
+            animation: fade 1.4s ease-in-out infinite;
+        }
+
+        @keyframes fade {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        .analogy-text {
+            font-size: 1.12rem;
+            line-height: 1.85;
+            color: #e8e8f4;
+            width: 100%;
+            animation: appear 0.4s ease-out;
+        }
+
+        @keyframes appear {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .analogy-text .term-a { color: #f5a623; font-style: italic; }
+        .analogy-text .term-b { color: #4facfe; font-style: italic; }
+
+        .error-text {
+            color: #f87171;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .examples { margin-top: 40px; text-align: center; }
+
+        .examples h3 {
+            color: rgba(255,255,255,0.22);
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.22em;
+            margin-bottom: 14px;
+            font-family: sans-serif;
+        }
+
+        .chip-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+        .chip {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 20px;
+            padding: 6px 13px;
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.35);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Georgia', serif;
+        }
+
+        .chip:hover {
+            background: rgba(167,139,250,0.12);
+            border-color: rgba(167,139,250,0.35);
+            color: #a78bfa;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Analogizer</h1>
+        <p class="tagline">Discover the unexpected connections between things</p>
+        <p class="tagline" style="margin-top:6px; font-size:0.85rem; opacity:0.55;">AI freestyles a fresh analogy every time — no two answers alike</p>
+    </header>
+
+    <datalist id="itemList"></datalist>
+
+    <div class="game-area">
+        <div class="selector">
+            <label>First thing</label>
+            <input id="selectA" list="itemList" placeholder="type anything…" autocomplete="off" />
+        </div>
+        <div class="connector">is like</div>
+        <div class="selector">
+            <label>Second thing</label>
+            <input id="selectB" list="itemList" placeholder="type anything…" autocomplete="off" />
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-random" onclick="randomize()">&#x21ba; Random</button>
+        <button class="btn-generate" id="genBtn" onclick="generate()">Make Analogy &rarr;</button>
+    </div>
+
+    <div class="result-card" id="resultCard">
+        <div class="progress-line" id="progressLine"></div>
+        <p class="placeholder-text">Select two things and click "Make Analogy"<br>to discover what secretly connects them.</p>
+    </div>
+
+    <div class="examples">
+        <h3>Try one of these</h3>
+        <div class="chip-row" id="chips"></div>
+    </div>
+</div>
+
+<script>
+const ITEMS = [
+    "a library", "a volcano", "a compass", "a chameleon", "a lighthouse",
+    "jazz music", "democracy", "a surgeon", "a glacier", "a spider's web",
+    "a kaleidoscope", "a thunderstorm", "a beehive", "quicksand", "a mirror",
+    "the ocean", "a puzzle", "fire", "a clock", "gravity",
+    "a detective", "a garden", "social media", "a symphony", "a black hole",
+    "a river", "language", "a candle", "a telescope", "a vaccine"
+];
+
+const EXAMPLE_PAIRS = [
+    ["a library", "the ocean"],
+    ["a volcano", "democracy"],
+    ["a chameleon", "social media"],
+    ["jazz music", "a thunderstorm"],
+    ["a compass", "a surgeon"],
+    ["a glacier", "language"],
+    ["a spider's web", "a symphony"],
+];
+
+function populate() {
+    const list = document.getElementById('itemList');
+    ITEMS.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        list.appendChild(opt);
+    });
+}
+
+function buildChips() {
+    const row = document.getElementById('chips');
+    EXAMPLE_PAIRS.forEach(([a, b]) => {
+        const chip = document.createElement('button');
+        chip.className = 'chip';
+        chip.textContent = `${a} / ${b}`;
+        chip.onclick = () => {
+            document.getElementById('selectA').value = a;
+            document.getElementById('selectB').value = b;
+            generate();
+        };
+        row.appendChild(chip);
+    });
+}
+
+function randomize() {
+    let a = Math.floor(Math.random() * ITEMS.length);
+    let b;
+    do { b = Math.floor(Math.random() * ITEMS.length); } while (b === a);
+    document.getElementById('selectA').value = ITEMS[a];
+    document.getElementById('selectB').value = ITEMS[b];
+}
+
+function setLoading(on) {
+    document.getElementById('genBtn').disabled = on;
+    const card = document.getElementById('resultCard');
+    if (on) {
+        card.classList.remove('has-result');
+        card.innerHTML = `<div class="progress-line animating" id="progressLine"></div>
+            <p class="loading-text">Finding the hidden connection&hellip;</p>`;
+    }
+}
+
+function showResult(itemA, itemB, text) {
+    const card = document.getElementById('resultCard');
+    card.classList.add('has-result');
+    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let html = text
+        .replace(new RegExp(esc(itemA), 'gi'), `<span class="term-a">$&</span>`)
+        .replace(new RegExp(esc(itemB), 'gi'), `<span class="term-b">$&</span>`);
+    card.innerHTML = `<div class="progress-line" id="progressLine"></div>
+        <div class="analogy-text">${html}</div>`;
+}
+
+function showError(msg) {
+    const card = document.getElementById('resultCard');
+    card.classList.remove('has-result');
+    card.innerHTML = `<div class="progress-line" id="progressLine"></div>
+        <p class="error-text">${msg}</p>`;
+}
+
+async function generate() {
+    const itemA = document.getElementById('selectA').value.trim();
+    const itemB = document.getElementById('selectB').value.trim();
+
+    if (!itemA || !itemB) { showError('Please enter something in both fields.'); return; }
+    if (itemA.toLowerCase() === itemB.toLowerCase()) { showError('Please pick two <em>different</em> things!'); return; }
+
+    setLoading(true);
+
+    try {
+        const res = await fetch('/api/analogy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemA, itemB })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        showResult(itemA, itemB, data.text);
+    } catch (e) {
+        showError('Error: ' + e.message);
+    } finally {
+        document.getElementById('genBtn').disabled = false;
+    }
+}
+
+populate();
+buildChips();
+randomize();
+
+document.getElementById('selectA').addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+document.getElementById('selectB').addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+</script>
+</body>
+</html>
