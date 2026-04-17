@@ -22,7 +22,7 @@
         header { text-align: center; margin-bottom: 44px; }
 
         h1 {
-            font-size: clamp(2.8rem, 8vw, 5rem);
+            font-size: clamp(1.8rem, 8vw, 5rem);
             font-weight: 900;
             letter-spacing: 0.25em;
             text-transform: uppercase;
@@ -89,6 +89,32 @@
             padding-bottom: 14px;
             text-shadow: 0 0 24px rgba(240,147,251,0.6);
         }
+
+        .effort-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .effort-select {
+            background: rgba(255,255,255,0.07);
+            border: 2px solid rgba(167,139,250,0.25);
+            border-radius: 12px;
+            padding: 10px 16px;
+            color: #a78bfa;
+            font-size: 0.9rem;
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            appearance: none;
+            text-align: center;
+        }
+
+        .effort-select:hover { border-color: rgba(167,139,250,0.55); }
+        .effort-select:focus { border-color: #a78bfa; }
+        .effort-select option { background: #1a1040; font-style: normal; }
 
         .controls {
             display: flex;
@@ -247,7 +273,7 @@
 <div class="container">
     <header>
         <h1>Analogizer</h1>
-        <p class="tagline">Discover the unexpected connections between things</p>
+        <p class="tagline">Connections between things</p>
         <p class="tagline" style="margin-top:6px; font-size:0.85rem; opacity:0.55;">AI freestyles a fresh analogy every time — no two answers alike</p>
     </header>
 
@@ -265,6 +291,14 @@
         </div>
     </div>
 
+    <div class="effort-row">
+        <select class="effort-select" id="effortSelect">
+            <option value="quick">Give it a quick shot</option>
+            <option value="balanced" selected>Think it through</option>
+            <option value="deep">Really go for it</option>
+        </select>
+    </div>
+
     <div class="controls">
         <button class="btn-random" onclick="randomize()">&#x21ba; Random</button>
         <button class="btn-generate" id="genBtn" onclick="generate()">Make Analogy &rarr;</button>
@@ -272,7 +306,7 @@
 
     <div class="result-card" id="resultCard">
         <div class="progress-line" id="progressLine"></div>
-        <p class="placeholder-text">Select two things and click "Make Analogy"<br>to discover what secretly connects them.</p>
+        <p class="placeholder-text">Suggest two things, and tell me how hard to work on it.</p>
     </div>
 
     <div class="examples">
@@ -310,9 +344,10 @@ function populate() {
     });
 }
 
-function buildChips() {
+function buildChips(pairs) {
     const row = document.getElementById('chips');
-    EXAMPLE_PAIRS.forEach(([a, b]) => {
+    row.innerHTML = '';
+    pairs.forEach(([a, b]) => {
         const chip = document.createElement('button');
         chip.className = 'chip';
         chip.textContent = `${a} / ${b}`;
@@ -325,12 +360,26 @@ function buildChips() {
     });
 }
 
+function randomPairs(count) {
+    const pairs = [];
+    const used = new Set();
+    while (pairs.length < count) {
+        let a = Math.floor(Math.random() * ITEMS.length);
+        let b;
+        do { b = Math.floor(Math.random() * ITEMS.length); } while (b === a);
+        const key = [a, b].sort().join(',');
+        if (!used.has(key)) { used.add(key); pairs.push([ITEMS[a], ITEMS[b]]); }
+    }
+    return pairs;
+}
+
 function randomize() {
     let a = Math.floor(Math.random() * ITEMS.length);
     let b;
     do { b = Math.floor(Math.random() * ITEMS.length); } while (b === a);
     document.getElementById('selectA').value = ITEMS[a];
     document.getElementById('selectB').value = ITEMS[b];
+    buildChips(randomPairs(7));
 }
 
 function setLoading(on) {
@@ -364,6 +413,7 @@ function showError(msg) {
 async function generate() {
     const itemA = document.getElementById('selectA').value.trim();
     const itemB = document.getElementById('selectB').value.trim();
+    const effort = document.getElementById('effortSelect').value;
 
     if (!itemA || !itemB) { showError('Please enter something in both fields.'); return; }
     if (itemA.toLowerCase() === itemB.toLowerCase()) { showError('Please pick two <em>different</em> things!'); return; }
@@ -374,7 +424,7 @@ async function generate() {
         const res = await fetch('/api/analogy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ itemA, itemB })
+            body: JSON.stringify({ itemA, itemB, effort })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -387,7 +437,6 @@ async function generate() {
 }
 
 populate();
-buildChips();
 randomize();
 
 document.getElementById('selectA').addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
